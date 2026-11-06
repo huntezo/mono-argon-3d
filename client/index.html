@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MONO ARGON — 3D Online Multiplayer Monopoly</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <canvas id="board-canvas"></canvas>
+  <div class="screen-vignette"></div>
+
+  <!-- Toast notifications -->
+  <div id="toast-stack" class="toast-stack"></div>
+
+  <!-- Hover tooltip for board tiles -->
+  <div id="tile-tooltip" class="tile-tooltip hidden"></div>
+
+  <!-- Purchase offer -->
+  <div id="offer-card" class="offer-card hidden">
+    <div class="offer-band" id="offer-band">
+      <span class="offer-tag">FOR SALE</span>
+      <h3 id="offer-title">Property</h3>
+    </div>
+    <div class="offer-body" id="offer-body"></div>
+    <div class="offer-actions">
+      <button id="offer-pass" class="action-btn secondary">Pass <kbd>P</kbd></button>
+      <button id="offer-buy" class="action-btn success">Buy <kbd>B</kbd></button>
+    </div>
+  </div>
+
+  <!-- Portfolio -->
+  <div id="portfolio-modal" class="modal-backdrop hidden">
+    <div class="portfolio-card glass-panel">
+      <div class="portfolio-head">
+        <div>
+          <h2>My Portfolio</h2>
+          <span id="portfolio-summary" class="portfolio-summary"></span>
+        </div>
+        <button class="icon-close" id="portfolio-close" aria-label="Close">✕</button>
+      </div>
+      <p class="portfolio-note" id="portfolio-note"></p>
+      <div id="portfolio-body" class="portfolio-body"></div>
+    </div>
+  </div>
+
+  <!-- Top bar -->
+  <header id="top-bar" class="glass-panel hidden">
+    <div class="brand-group">
+      <div class="brand-mark">M</div>
+      <div class="brand-text">
+        <span class="brand-title">MONO ARGON</span>
+        <span class="brand-sub">3D ONLINE EDITION</span>
+      </div>
+      <div class="chip room-chip" id="room-code-chip" title="Click to copy room code">
+        <span class="chip-label">ROOM</span>
+        <strong id="room-code-display">------</strong>
+        <span class="copy-hint">⧉</span>
+      </div>
+      <div class="chip"><span class="chip-label">TURN</span><strong id="turn-counter">1</strong></div>
+      <div class="chip"><span class="chip-label">MATCH</span><strong id="match-timer">00:00</strong></div>
+      <div class="chip jackpot-chip hidden" id="jackpot-chip" title="Free Parking Jackpot Pool">
+        <span class="chip-label">🎰 POT</span><strong id="jackpot-amount">$100</strong>
+      </div>
+      <div class="chip spectator-chip hidden" id="spectator-chip" title="Live Spectators">
+        <span class="chip-label">👁️</span><strong id="spectator-count">0</strong>
+      </div>
+    </div>
+
+    <div class="active-turn-banner" id="active-turn-banner">
+      <span class="turn-dot" id="turn-dot"></span>
+      <span id="turn-banner-text">Waiting for players…</span>
+      <div class="turn-timer-pill hidden" id="turn-timer-pill" title="Remaining Turn Time">
+        <span class="timer-icon">⏱️</span>
+        <strong id="turn-timer-text">60s</strong>
+      </div>
+      <div class="turn-progress-track">
+        <div class="turn-progress-bar" id="turn-progress-bar"></div>
+      </div>
+    </div>
+
+    <div class="camera-controls">
+      <button class="cam-btn active" data-cam="overview" title="3D overview">🎥 <span>Overview</span></button>
+      <button class="cam-btn" data-cam="follow" title="Follow active player">🎯 <span>Follow</span></button>
+      <button class="cam-btn" data-cam="topdown" title="Top-down view">🗺️ <span>Top</span></button>
+      <button class="cam-btn active" id="labels-toggle-btn" title="Show / hide property names (L)">🏷️ <span>Names</span></button>
+      <button class="cam-btn drawer-toggle" id="btn-toggle-players" title="Toggle Tycoons Panel">👥 <span>Tycoons</span></button>
+      <button class="cam-btn drawer-toggle" id="btn-toggle-feed" title="Toggle Live Feed & Chat">💬 <span>Chat</span></button>
+      <button class="cam-btn icon-only active" id="sound-toggle-btn" title="Toggle sound">🔊</button>
+    </div>
+  </header>
+
+  <!-- Players sidebar -->
+  <aside id="players-sidebar" class="glass-panel hidden">
+    <div class="panel-header">
+      <h3>Tycoons</h3>
+      <div class="panel-header-right">
+        <span class="count-badge" id="player-count-badge">0/6</span>
+        <button class="drawer-close" id="close-players-drawer" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div id="players-list" class="players-list"></div>
+  </aside>
+
+  <!-- Feed sidebar -->
+  <aside id="feed-sidebar" class="glass-panel hidden">
+    <div class="panel-header">
+      <h3>Live Feed</h3>
+      <div class="panel-header-right">
+        <span class="live-pill"><span class="live-dot"></span>LIVE</span>
+        <button class="drawer-close" id="close-feed-drawer" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div id="event-log" class="event-log"></div>
+    <form id="chat-form" class="chat-form">
+      <input type="text" id="chat-input" placeholder="Say something to the table…" maxlength="140" autocomplete="off" />
+      <button type="submit" aria-label="Send">➤</button>
+    </form>
+  </aside>
+
+  <!-- Drawn card -->
+  <div id="card-toast" class="card-toast hidden">
+    <div class="card-toast-tag" id="card-toast-tag">CHANCE</div>
+    <h4 id="card-toast-title">Advance to GO</h4>
+    <p id="card-toast-text">Collect $200 as you pass GO.</p>
+  </div>
+
+  <!-- Action dock -->
+  <footer id="action-dock" class="glass-panel hidden">
+    <div class="dice-readout">
+      <div class="die-face" id="ui-die-1"></div>
+      <div class="die-face" id="ui-die-2"></div>
+      <div class="dice-info">
+        <span class="dice-label">LAST ROLL</span>
+        <span class="dice-sum" id="ui-dice-sum">—</span>
+      </div>
+    </div>
+
+    <div class="action-buttons" id="action-buttons">
+      <span class="waiting-hint" id="waiting-hint">Waiting for other players…</span>
+      <button id="btn-roll" class="action-btn primary hidden">🎲 Roll Dice</button>
+      <button id="btn-buy" class="action-btn success hidden">🏠 Buy Property</button>
+      <button id="btn-pass" class="action-btn secondary hidden">Pass</button>
+      <button id="btn-pay-jail" class="action-btn warning hidden">🔓 Pay $50</button>
+      <button id="btn-use-card" class="action-btn warning hidden">🎟️ Use Card</button>
+      <button id="btn-bankrupt" class="action-btn danger hidden">💥 Declare Bankruptcy</button>
+      <button id="btn-end-turn" class="action-btn accent hidden">✅ End Turn</button>
+    </div>
+
+    <div class="dock-right">
+      <button id="btn-trade" class="action-btn secondary" title="Propose or view trades (T)">🤝 Trade <span class="badge-count hidden" id="trade-count">0</span></button>
+      <button id="btn-portfolio" class="action-btn secondary" title="Manage your properties (M)">🏘️ Portfolio <span class="badge-count" id="portfolio-count">0</span></button>
+      <button id="btn-stats" class="action-btn secondary" title="Wealth Graph &amp; Match Analytics (G)">📊 Stats</button>
+    </div>
+  </footer>
+
+  <!-- Title deed modal -->
+  <div id="deed-modal" class="modal-backdrop hidden">
+    <div class="deed-card">
+      <button class="deed-close" id="deed-close-btn" aria-label="Close">✕</button>
+      <div class="deed-header" id="deed-header">
+        <span class="deed-sub" id="deed-sub">TITLE DEED</span>
+        <h2 id="deed-title">BOARDWALK</h2>
+      </div>
+      <div class="deed-body" id="deed-body"></div>
+      <div class="deed-actions" id="deed-actions"></div>
+    </div>
+  </div>
+
+  <!-- Lobby -->
+  <div id="lobby-modal" class="modal-backdrop lobby-backdrop">
+    <div class="lobby-card glass-panel">
+      <div class="lobby-hero">
+        <div class="hero-logo">
+          <span class="hero-logo-main">MONOPOLY</span>
+          <span class="hero-logo-sub">ARGON · 3D ONLINE</span>
+        </div>
+        <p>Classic rules · Interactive 3D board · Online multiplayer &amp; AI rivals</p>
+      </div>
+
+      <div id="lobby-entry-view">
+        <div class="form-group">
+          <label for="player-name-input">Your name</label>
+          <input type="text" id="player-name-input" placeholder="e.g. Baron Rex" maxlength="18" value="Tycoon Rex" />
+        </div>
+
+        <div class="form-group">
+          <label>Choose your token</label>
+          <div id="token-selector" class="token-selector"></div>
+        </div>
+
+        <button id="btn-create-room" class="action-btn primary full-width large">✨ Create New Room</button>
+        <div class="divider-text"><span>or join a friend</span></div>
+        <div class="join-row">
+          <input type="text" id="join-code-input" placeholder="ROOM CODE" maxlength="6" />
+          <button id="btn-join-room" class="action-btn accent">Join →</button>
+        </div>
+        <p id="lobby-error" class="error-msg hidden"></p>
+      </div>
+
+      <div id="lobby-waiting-view" class="hidden">
+        <div class="waiting-room-header">
+          <div>
+            <span class="sub-label">Share this room code</span>
+            <h2 id="lobby-room-code">------</h2>
+          </div>
+          <button id="btn-copy-code" class="action-btn secondary">⧉ Copy</button>
+        </div>
+
+        <div class="lobby-players-box">
+          <h4>Players <span id="lobby-player-count">0/6</span></h4>
+          <div id="lobby-players-list" class="lobby-players-list"></div>
+        </div>
+
+        <div class="lobby-timer-box" id="lobby-timer-box">
+          <div class="timer-box-head">
+            <span>⏱️ TURN TIMER</span>
+            <strong id="lobby-timer-label">60s per turn</strong>
+          </div>
+          <div class="timer-options" id="timer-options">
+            <button type="button" class="timer-opt" data-sec="30">30s Blitz</button>
+            <button type="button" class="timer-opt active" data-sec="60">60s Standard</button>
+            <button type="button" class="timer-opt" data-sec="90">90s Relaxed</button>
+            <button type="button" class="timer-opt" data-sec="120">120s Long</button>
+            <button type="button" class="timer-opt" data-sec="0">∞ Off</button>
+          </div>
+        </div>
+
+        <div class="lobby-timer-box" id="lobby-rules-box">
+          <div class="timer-box-head">
+            <span>⚙️ HOUSE RULES &amp; STARTING CASH</span>
+          </div>
+          <div class="cash-options" id="cash-options">
+            <button type="button" class="timer-opt" data-cash="1000">$1,000 Hardcore</button>
+            <button type="button" class="timer-opt active" data-cash="1500">$1,500 Classic</button>
+            <button type="button" class="timer-opt" data-cash="2500">$2,500 Tycoon</button>
+          </div>
+          <div class="rule-toggles">
+            <label class="rule-check"><input type="checkbox" id="rule-jackpot" checked /> <span>🎰 Free Parking Jackpot</span></label>
+            <label class="rule-check"><input type="checkbox" id="rule-double-go" /> <span>💵 Double on Exact GO ($400)</span></label>
+            <label class="rule-check"><input type="checkbox" id="rule-auctions" checked /> <span>🔨 Live Auctions on Pass</span></label>
+          </div>
+        </div>
+
+        <div class="lobby-host-controls" id="lobby-host-controls">
+          <button id="btn-add-bot" class="action-btn secondary full-width">🤖 Add AI Opponent</button>
+          <button id="btn-start-game" class="action-btn success full-width large">🚀 Start Match</button>
+        </div>
+        <p id="waiting-guest-msg" class="guest-msg hidden"><span class="spinner"></span> Waiting for the host to start…</p>
+        <p id="waiting-error" class="error-msg hidden"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div id="gameover-modal" class="modal-backdrop hidden">
+    <div class="lobby-card glass-panel center-text gameover-card">
+      <div class="trophy">🏆</div>
+      <span class="hero-pill">VICTORY</span>
+      <h1 id="winner-title">Winner!</h1>
+      <p id="winner-subtitle">Dominated the board and bankrupted every rival.</p>
+      <div class="gameover-actions">
+        <button id="btn-gameover-stats" class="action-btn secondary full-width">📊 View Wealth Graph &amp; Awards</button>
+        <button id="btn-play-again" class="action-btn primary full-width large" onclick="window.location.reload()">🔄 Play Again</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Live Property Auction Modal -->
+  <div id="auction-modal" class="modal-backdrop hidden">
+    <div class="auction-card glass-panel">
+      <div class="auction-band" id="auction-band">
+        <span class="offer-tag">🔨 LIVE PROPERTY AUCTION</span>
+        <h2 id="auction-title">CITY</h2>
+        <span id="auction-sub" class="auction-sub">Retail Value: $200</span>
+      </div>
+      <div class="auction-body">
+        <div class="auction-bid-box">
+          <div>
+            <span class="sub-label">HIGHEST BID</span>
+            <div class="auction-price" id="auction-price">$50</div>
+            <div class="auction-leader" id="auction-leader">Opening bid</div>
+          </div>
+          <div class="auction-clock-box">
+            <span class="sub-label">HAMMER IN</span>
+            <div class="auction-clock" id="auction-clock">10s</div>
+          </div>
+        </div>
+        <div class="auction-actions" id="auction-actions">
+          <button type="button" class="action-btn success bid-btn" data-inc="10">+$10</button>
+          <button type="button" class="action-btn success bid-btn" data-inc="50">+$50</button>
+          <button type="button" class="action-btn success bid-btn" data-inc="100">+$100</button>
+          <button type="button" id="btn-auction-fold" class="action-btn danger">Fold</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player-to-Player Trade Modal -->
+  <div id="trade-modal" class="modal-backdrop hidden">
+    <div class="portfolio-card glass-panel trade-card">
+      <div class="portfolio-head">
+        <div>
+          <h2>🤝 Trade Center</h2>
+          <span class="portfolio-summary">Swap cities, airports, and cash with rivals or AI Bots</span>
+        </div>
+        <button class="icon-close" id="trade-close" aria-label="Close">✕</button>
+      </div>
+      <div id="incoming-trades-box" class="incoming-trades-box"></div>
+      <div class="trade-builder">
+        <div class="trade-partner-row">
+          <label for="trade-partner-select">TRADE PARTNER:</label>
+          <select id="trade-partner-select"></select>
+        </div>
+        <div class="trade-columns">
+          <div class="trade-col">
+            <h4>YOU OFFER</h4>
+            <div class="trade-cash-input">
+              <span>💵 Cash: $</span>
+              <input type="number" id="trade-offer-cash" min="0" step="10" value="0" />
+            </div>
+            <div id="trade-offer-tiles" class="trade-tile-list"></div>
+          </div>
+          <div class="trade-col">
+            <h4>YOU REQUEST</h4>
+            <div class="trade-cash-input">
+              <span>💵 Cash: $</span>
+              <input type="number" id="trade-request-cash" min="0" step="10" value="0" />
+            </div>
+            <div id="trade-request-tiles" class="trade-tile-list"></div>
+          </div>
+        </div>
+        <button id="btn-send-trade" class="action-btn primary full-width">📨 Send Trade Proposal</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Wealth Graph & Match Analytics Modal -->
+  <div id="stats-modal" class="modal-backdrop hidden">
+    <div class="portfolio-card glass-panel stats-card">
+      <div class="portfolio-head">
+        <div>
+          <h2>📊 Wealth Timeline &amp; Match Awards</h2>
+          <span class="portfolio-summary">Net worth history across turns and tycoon leaderboards</span>
+        </div>
+        <button class="icon-close" id="stats-close" aria-label="Close">✕</button>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="wealth-chart-canvas" width="580" height="220"></canvas>
+      </div>
+      <div id="stats-awards-grid" class="stats-awards-grid"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
